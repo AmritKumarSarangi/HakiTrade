@@ -77,6 +77,3 @@ Deploy to **Vercel** or **Netlify**.
 
 ## ⚖️ Disclaimer
 *HakiTrade is for educational and research purposes. Quantitative trading involves significant risk. Always test strategies thoroughly in paper mode before committing real capital.*
-
----
-Built with ⚡ by Antigravity AI
