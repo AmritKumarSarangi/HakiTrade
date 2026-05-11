@@ -2,8 +2,6 @@
 
 HakiTrade is a sophisticated, real-time quantitative trading dashboard powered by machine learning. It provides institutional-grade stock analysis, AI-ranked signals, and a seamless trading interface for both paper and live execution.
 
-![HakiTrade Dashboard](https://github.com/placeholder-image.png)
-
 ## 🌟 Key Features
 
 - **🧠 Ensemble AI Engine**: Leverages XGBoost, LightGBM, LSTM, and Transformer models to predict stock price movements with high conviction.
