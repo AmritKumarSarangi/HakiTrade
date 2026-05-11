@@ -1,0 +1,217 @@
+{
+  "capital": 83024.39990234375,
+  "positions": [
+    {
+      "symbol": "BAJAJ-AUTO",
+      "full_symbol": "BAJAJ-AUTO.NS",
+      "quantity": 1,
+      "entry_price": 10711.5,
+      "targets": {
+        "entry": 10711.5,
+        "atr": {
+          "target": 11354.19,
+          "stop_loss": 10390.15,
+          "risk_reward": 2.0,
+          "atr_value": 214.23
+        },
+        "fibonacci": {
+          "target_127": 11173.96,
+          "target_162": 11668.74,
+          "stop_loss": 10165.24,
+          "swing_low": 9355.0,
+          "swing_high": 10785.0,
+          "risk_reward": 0.85
+        },
+        "fixed": {
+          "target_5pct": 11247.08,
+          "target_10pct": 11782.65,
+          "target_15pct": 12318.22,
+          "stop_loss": 10390.15,
+          "risk_reward_5": 1.67,
+          "risk_reward_10": 3.33,
+          "risk_reward_15": 5.0
+        }
+      },
+      "timestamp": "2026-05-12T01:05:24.161690"
+    },
+    {
+      "symbol": "PIDILITIND",
+      "full_symbol": "PIDILITIND.NS",
+      "quantity": 1,
+      "entry_price": 1476.0,
+      "targets": {
+        "entry": 1476.0,
+        "atr": {
+          "target": 1564.56,
+          "stop_loss": 1431.72,
+          "risk_reward": 2.0,
+          "atr_value": 29.52
+        },
+        "fibonacci": {
+          "target_127": 1569.59,
+          "target_162": 1639.03,
+          "stop_loss": 1399.33,
+          "swing_low": 1314.3,
+          "swing_high": 1515.0,
+          "risk_reward": 1.22
+        },
+        "fixed": {
+          "target_5pct": 1549.8,
+          "target_10pct": 1623.6,
+          "target_15pct": 1697.4,
+          "stop_loss": 1431.72,
+          "risk_reward_5": 1.67,
+          "risk_reward_10": 3.33,
+          "risk_reward_15": 5.0
+        }
+      },
+      "timestamp": "2026-05-12T01:06:29.324138"
+    },
+    {
+      "symbol": "HAL",
+      "full_symbol": "HAL.NS",
+      "quantity": 1,
+      "entry_price": 4788.1,
+      "targets": {
+        "entry": 4788.1,
+        "atr": {
+          "target": 5075.39,
+          "stop_loss": 4644.46,
+          "risk_reward": 2.0,
+          "atr_value": 95.76
+        },
+        "fibonacci": {
+          "target_127": 5060.16,
+          "target_162": 5344.91,
+          "stop_loss": 4473.71,
+          "swing_low": 4013.3,
+          "swing_high": 4836.3,
+          "risk_reward": 0.87
+        },
+        "fixed": {
+          "target_5pct": 5027.51,
+          "target_10pct": 5266.91,
+          "target_15pct": 5506.32,
+          "stop_loss": 4644.46,
+          "risk_reward_5": 1.67,
+          "risk_reward_10": 3.33,
+          "risk_reward_15": 5.0
+        }
+      },
+      "timestamp": "2026-05-12T01:16:27.836616"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ORD20260512010524",
+      "symbol": "BAJAJ-AUTO",
+      "full_symbol": "BAJAJ-AUTO.NS",
+      "quantity": 1,
+      "entry_price": 10711.5,
+      "mode": "paper",
+      "type": "BUY",
+      "timestamp": "2026-05-12T01:05:24.161690",
+      "targets": {
+        "entry": 10711.5,
+        "atr": {
+          "target": 11354.19,
+          "stop_loss": 10390.15,
+          "risk_reward": 2.0,
+          "atr_value": 214.23
+        },
+        "fibonacci": {
+          "target_127": 11173.96,
+          "target_162": 11668.74,
+          "stop_loss": 10165.24,
+          "swing_low": 9355.0,
+          "swing_high": 10785.0,
+          "risk_reward": 0.85
+        },
+        "fixed": {
+          "target_5pct": 11247.08,
+          "target_10pct": 11782.65,
+          "target_15pct": 12318.22,
+          "stop_loss": 10390.15,
+          "risk_reward_5": 1.67,
+          "risk_reward_10": 3.33,
+          "risk_reward_15": 5.0
+        }
+      },
+      "status": "OPEN"
+    },
+    {
+      "id": "ORD20260512010629",
+      "symbol": "PIDILITIND",
+      "full_symbol": "PIDILITIND.NS",
+      "quantity": 1,
+      "entry_price": 1476.0,
+      "mode": "paper",
+      "type": "BUY",
+      "timestamp": "2026-05-12T01:06:29.324138",
+      "targets": {
+        "entry": 1476.0,
+        "atr": {
+          "target": 1564.56,
+          "stop_loss": 1431.72,
+          "risk_reward": 2.0,
+          "atr_value": 29.52
+        },
+        "fibonacci": {
+          "target_127": 1569.59,
+          "target_162": 1639.03,
+          "stop_loss": 1399.33,
+          "swing_low": 1314.3,
+          "swing_high": 1515.0,
+          "risk_reward": 1.22
+        },
+        "fixed": {
+          "target_5pct": 1549.8,
+          "target_10pct": 1623.6,
+          "target_15pct": 1697.4,
+          "stop_loss": 1431.72,
+          "risk_reward_5": 1.67,
+          "risk_reward_10": 3.33,
+          "risk_reward_15": 5.0
+        }
+      },
+      "status": "OPEN"
+    },
+    {
+      "id": "ORD20260512011627",
+      "symbol": "HAL",
+      "full_symbol": "HAL.NS",
+      "quantity": 1,
+      "entry_price": 4788.10009765625,
+      "mode": "paper",
+      "type": "BUY",
+      "timestamp": "2026-05-12T01:16:27.835105",
+      "targets": {
+        "entry": 4788.1,
+        "atr": {
+          "target": 5075.39,
+          "stop_loss": 4644.46,
+          "risk_reward": 2.0,
+          "atr_value": 95.76
+        },
+        "fibonacci": {
+          "target_127": 5060.16,
+          "target_162": 5344.91,
+          "stop_loss": 4473.71,
+          "swing_low": 4013.3,
+          "swing_high": 4836.3,
+          "risk_reward": 0.87
+        },
+        "fixed": {
+          "target_5pct": 5027.51,
+          "target_10pct": 5266.91,
+          "target_15pct": 5506.32,
+          "stop_loss": 4644.46,
+          "risk_reward_5": 1.67,
+          "risk_reward_10": 3.33,
+          "risk_reward_15": 5.0
+        }
+      },
+      "status": "OPEN"
+    }
+  ]
+}

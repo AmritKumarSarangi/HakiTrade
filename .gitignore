@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+build/
+dist/
+*.egg-info/
+.installed.cfg
+.eggs/
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.DS_Store
+
+# Data & Models
+data/*.json
+!data/paper_portfolio_template.json
+*.pkl
+*.joblib
+*.h5
+
+# OS Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
