@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    build: ./frontend
+    expose:
+      - "80"
+
+  backend:
+    build: .
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/hakitrade
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  celery_worker:
+    build: .
+    command: celery -A app.celery_worker.celery_app worker --beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/hakitrade
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  redis:
+    image: redis:alpine
+    expose:
+      - "6379"
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: hakitrade
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d hakitrade"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
