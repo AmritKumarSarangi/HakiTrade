@@ -1,14 +1,14 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Legend,
   XAxis, YAxis, Tooltip, CartesianGrid,
   ResponsiveContainer, Cell, Area, AreaChart
 } from "recharts";
+import { createChart, ColorType, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import "./App.css";
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "https://backend-production-33be.up.railway.app";
 
 const shortSymbol = (s) => s.replace(".NS", "");
 
@@ -888,9 +888,377 @@ function LoginView({ onLogin }) {
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
+// ── Learn View ──────────────────────────────────────────────────────────────
+function LearnView() {
+  const [openSections, setOpenSections] = useState(new Set());
+
+  const toggleSection = (idx) => {
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  return (
+    <div className="learn-container">
+      <h2 className="learn-title">Learning Center</h2>
+      <p className="learn-subtitle">Master the markets and understand how HakiTrade models analyze data.</p>
+
+      <div className="learn-section">
+        <div className="learn-section-header" onClick={() => toggleSection(0)}>
+          <h3>📊 Stock Market Basics</h3>
+          <span className={`learn-chevron ${openSections.has(0) ? "open" : ""}`}>▸</span>
+        </div>
+        <div className={`learn-section-content ${openSections.has(0) ? "open" : ""}`}>
+          <p>
+            Stocks represent ownership in a company. The National Stock Exchange (NSE) is India's leading stock exchange.
+          </p>
+          <ul>
+            <li><strong>Market Hours:</strong> 9:15 AM - 3:30 PM IST (Normal Trading)</li>
+            <li><strong>Indices:</strong> Nifty 50 (top 50 companies), Sensex (top 30 on BSE) measure market performance.</li>
+            <li><strong>Market Order:</strong> Executed immediately at current market price.</li>
+            <li><strong>Limit Order:</strong> Executed only at a specified price or better.</li>
+            <li><strong>Stop-Loss:</strong> An order to sell a stock when it reaches a certain price to limit loss.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="learn-section">
+        <div className="learn-section-header" onClick={() => toggleSection(1)}>
+          <h3>⚠️ Understanding Risk</h3>
+          <span className={`learn-chevron ${openSections.has(1) ? "open" : ""}`}>▸</span>
+        </div>
+        <div className={`learn-section-content ${openSections.has(1) ? "open" : ""}`}>
+          <p>
+            Trading involves significant risk. Effective risk management is crucial for long-term success.
+          </p>
+          <ul>
+            <li><strong>Systematic Risk:</strong> Market-wide risks (e.g., economic changes, interest rates).</li>
+            <li><strong>Unsystematic Risk:</strong> Company-specific risks, mitigated through diversification.</li>
+            <li><strong>Diversification:</strong> Spreading investments across different sectors to reduce risk.</li>
+            <li><strong>Position Sizing:</strong> Determining the amount of capital to risk on a single trade (typically 1-2% of total capital).</li>
+            <li><strong>Stop-Loss:</strong> Always define an exit point before entering a trade to protect capital.</li>
+          </ul>
+          <div className="highlight-box">
+            Never invest more than you can afford to lose. Emotional discipline and sticking to a plan are vital.
+          </div>
+        </div>
+      </div>
+
+      <div className="learn-section">
+        <div className="learn-section-header" onClick={() => toggleSection(2)}>
+          <h3>📈 Technical Indicators</h3>
+          <span className={`learn-chevron ${openSections.has(2) ? "open" : ""}`}>▸</span>
+        </div>
+        <div className={`learn-section-content ${openSections.has(2) ? "open" : ""}`}>
+          <p>
+            Technical indicators use mathematical calculations based on historical price, volume, or open interest information.
+          </p>
+          <ul>
+            <li><strong>RSI (Relative Strength Index):</strong> Measures momentum. Overbought &gt;70, Oversold &lt;30.</li>
+            <li><strong>MACD (Moving Average Convergence Divergence):</strong> Trend-following momentum indicator. Buy signals occur on positive crossovers.</li>
+            <li><strong>Bollinger Bands:</strong> Volatility indicator. Prices touching the upper band may indicate overbought conditions.</li>
+            <li><strong>Volume Analysis:</strong> Confirms trends. High volume on up days supports a bullish trend.</li>
+            <li><strong>ATR (Average True Range):</strong> Measures market volatility over a specific period.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="learn-section">
+        <div className="learn-section-header" onClick={() => toggleSection(3)}>
+          <h3>🤖 How HakiTrade Works</h3>
+          <span className={`learn-chevron ${openSections.has(3) ? "open" : ""}`}>▸</span>
+        </div>
+        <div className={`learn-section-content ${openSections.has(3) ? "open" : ""}`}>
+          <p>
+            HakiTrade leverages multiple machine learning models to analyze market data and generate insights.
+          </p>
+          <ul>
+            <li><strong>Dashboard:</strong> Displays quant scores evaluating the overall health of a stock.</li>
+            <li><strong>Signals:</strong> Provides ML consensus from 4 distinct models (XGBoost, LightGBM, LSTM, Transformer).</li>
+            <li><strong>Trading:</strong> Supports both paper trading and live trading via API integrations.</li>
+            <li><strong>Risk:</strong> Monitors Value at Risk (VaR) and enforces position limits.</li>
+            <li><strong>Backtest:</strong> Allows historical strategy testing to evaluate performance before deploying capital.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="learn-section">
+        <div className="learn-section-header" onClick={() => toggleSection(4)}>
+          <h3>⚖️ Important Disclaimers</h3>
+          <span className={`learn-chevron ${openSections.has(4) ? "open" : ""}`}>▸</span>
+        </div>
+        <div className={`learn-section-content ${openSections.has(4) ? "open" : ""}`}>
+          <div className="disclaimer-banner">
+            <h4>Disclaimer</h4>
+            <ul>
+              <li>Not financial advice. Educational platform only.</li>
+              <li>Past performance does not guarantee future results.</li>
+              <li>Always perform your own research and due diligence.</li>
+              <li>Subject to SEBI regulations. Consult a registered financial advisor before making any investment decisions.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ── Chart View ──────────────────────────────────────────────────────────────
+// ── Chart View ──────────────────────────────────────────────────────────────
+function ChartView({ initialSymbol = "RELIANCE.NS", onSymbolChange }) {
+  const chartContainerRef = useRef(null);
+  const chartRef = useRef(null);
+  const candlestickSeriesRef = useRef(null);
+  const volumeSeriesRef = useRef(null);
+  const [period, setPeriod] = useState("3M");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [chartData, setChartData] = useState([]);
+  const [activeSymbol, setActiveSymbol] = useState(initialSymbol);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (initialSymbol && initialSymbol !== activeSymbol) {
+      setActiveSymbol(initialSymbol);
+    }
+  }, [initialSymbol]);
+
+  const fetchChartData = useCallback(async (sym, p) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await axios.get(`${API_BASE_URL}/chart-data/${sym}?period=${p}`);
+      if (res.data && res.data.success && Array.isArray(res.data.data)) {
+        setChartData(res.data.data);
+      } else {
+        setError(res.data?.error || "No chart data available");
+        setChartData([]);
+      }
+    } catch (e) {
+      console.error("Failed to fetch chart data", e);
+      setError(e.message || "Failed to load chart");
+      setChartData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchChartData(activeSymbol, period);
+  }, [activeSymbol, period, fetchChartData]);
+
+  // Handle Search Debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/search-stocks?query=${encodeURIComponent(searchQuery.trim())}`);
+        setSearchResults(res.data?.results || []);
+        setShowDropdown(true);
+      } catch (e) {
+        console.error("Search failed", e);
+      }
+    }, 300);
+
+    return () => clearTimeout(searchTimeoutRef.current);
+  }, [searchQuery]);
+
+  // Handle Lightweight Chart Lifecycle (v5 compatible)
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+
+    const container = chartContainerRef.current;
+    const chart = createChart(container, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#0a0f1e' },
+        textColor: '#8899bb'
+      },
+      grid: {
+        vertLines: { color: 'rgba(99,179,237,0.06)' },
+        horzLines: { color: 'rgba(99,179,237,0.06)' }
+      },
+      crosshair: { mode: 0 },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        borderColor: 'rgba(99,179,237,0.1)'
+      },
+      autoSize: true,
+      height: 500,
+    });
+
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderUpColor: '#10b981',
+      borderDownColor: '#ef4444',
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444'
+    });
+
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: 'rgba(59,130,246,0.35)',
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume',
+    });
+
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+
+    chartRef.current = chart;
+    candlestickSeriesRef.current = candlestickSeries;
+    volumeSeriesRef.current = volumeSeries;
+
+    return () => {
+      chart.remove();
+      chartRef.current = null;
+      candlestickSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+    };
+  }, []);
+
+  // Update chart data
+  useEffect(() => {
+    if (!candlestickSeriesRef.current || !volumeSeriesRef.current) return;
+
+    if (!chartData.length) {
+      candlestickSeriesRef.current.setData([]);
+      volumeSeriesRef.current.setData([]);
+      return;
+    }
+
+    try {
+      // Sort and deduplicate by time ascending
+      const sorted = [...chartData].sort((a, b) => a.time - b.time);
+      const unique = [];
+      const seenTimes = new Set();
+      for (const item of sorted) {
+        if (!seenTimes.has(item.time) && item.open != null && item.close != null) {
+          seenTimes.add(item.time);
+          unique.push(item);
+        }
+      }
+
+      const formattedCandles = unique.map(d => ({
+        time: d.time,
+        open: Number(d.open),
+        high: Number(d.high),
+        low: Number(d.low),
+        close: Number(d.close),
+      }));
+
+      const formattedVolume = unique.map(d => ({
+        time: d.time,
+        value: Number(d.volume || 0),
+        color: Number(d.close) >= Number(d.open) ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.45)'
+      }));
+
+      candlestickSeriesRef.current.setData(formattedCandles);
+      volumeSeriesRef.current.setData(formattedVolume);
+
+      if (chartRef.current) {
+        chartRef.current.timeScale().fitContent();
+      }
+    } catch (err) {
+      console.error("Error setting chart data:", err);
+    }
+  }, [chartData]);
+
+  const handleSelectSymbol = (sym) => {
+    setActiveSymbol(sym);
+    if (onSymbolChange) onSymbolChange(sym);
+    setSearchQuery("");
+    setShowDropdown(false);
+  };
+
+  const lastCandle = chartData.length > 0 ? chartData[chartData.length - 1] : null;
+
+  return (
+    <div className="chart-view fade-in">
+      <div className="chart-toolbar">
+        <div className="stock-search-wrapper">
+          <input
+            type="text"
+            className="stock-search-input"
+            placeholder="Search 410+ NSE stocks (e.g. RELIANCE, TCS)..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onFocus={() => { if (searchResults.length) setShowDropdown(true); }}
+            onBlur={() => setTimeout(() => setShowDropdown(false), 250)}
+          />
+          {showDropdown && searchResults.length > 0 && (
+            <div className="stock-search-dropdown">
+              {searchResults.map(res => (
+                <div key={res.symbol} className="stock-search-item" onClick={() => handleSelectSymbol(res.full_symbol || `${res.symbol}.NS`)}>
+                  <span className="symbol">{res.symbol}</span>
+                  <span className="name">{res.name}</span>
+                  <span className="sector">{res.sector}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="timeframe-buttons">
+          {["1W", "1M", "3M", "6M", "1Y"].map(p => (
+            <button
+              key={p}
+              className={`timeframe-btn ${period === p ? "active" : ""}`}
+              onClick={() => setPeriod(p)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="chart-header">
+        <span className="stock-name">{shortSymbol(activeSymbol)}</span>
+        <span className="stock-symbol-label">{activeSymbol}</span>
+        {lastCandle && (
+          <span style={{ color: '#e0e8f5', fontSize: 18, fontFamily: "'JetBrains Mono',monospace", marginLeft: 'auto' }}>
+            {fmtPrice(lastCandle.close)}
+          </span>
+        )}
+      </div>
+
+      <div style={{ position: 'relative', minHeight: 500 }}>
+        <div ref={chartContainerRef} className="chart-container" style={{ width: '100%', height: 500 }} />
+        {loading && (
+          <div className="chart-loading" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(10, 15, 30, 0.85)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            Loading chart data for {activeSymbol}...
+          </div>
+        )}
+        {!loading && error && (
+          <div className="chart-loading" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#0a0f1e', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+            ⚠️ {error}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("haki_auth"));
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const [chartSymbol, setChartSymbol] = useState("RELIANCE.NS");
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -959,7 +1327,7 @@ export default function App() {
           <span className="logo-badge">NSE · QUANT</span>
         </div>
         <div className="navbar-center">
-          {["Dashboard", "Signals", "Risk", "Backtest", "Analytics", "Trading", "Data"].map(l => (
+          {["Dashboard", "Signals", "Charts", "Risk", "Backtest", "Analytics", "Trading", "Data", "Learn"].map(l => (
             <span 
               key={l} 
               className={`nav-link${l === activeTab ? " active" : ""}`}
@@ -1001,6 +1369,12 @@ export default function App() {
           </div>
         </div>
 
+        {/* ── Charts View ── */}
+        {activeTab === "Charts" && <ChartView initialSymbol={chartSymbol} onSymbolChange={(s) => setChartSymbol(s)} />}
+
+        {/* ── Learn View ── */}
+        {activeTab === "Learn" && <LearnView />}
+
         {/* ── Backtest View ── */}
         {activeTab === "Backtest" && <BacktestView />}
 
@@ -1017,7 +1391,7 @@ export default function App() {
         {activeTab === "Data" && <DataView />}
 
         {/* Stat Cards */}
-        {activeTab !== "Backtest" && activeTab !== "Trading" && activeTab !== "Risk" && activeTab !== "Analytics" && activeTab !== "Data" && (
+        {activeTab !== "Backtest" && activeTab !== "Trading" && activeTab !== "Risk" && activeTab !== "Analytics" && activeTab !== "Data" && activeTab !== "Charts" && activeTab !== "Learn" && (
         <div className="stats-row">
           {[
             {
@@ -1095,7 +1469,7 @@ export default function App() {
                     <tbody>
                       {loading ? <SkeletonRows /> : (activeTab === "Dashboard" ? stocks.slice(0, 15) : stocks).map((s, i) => (
                         <tr key={i}>
-                          <td>
+                          <td onClick={() => { setChartSymbol(s.symbol); setActiveTab("Charts"); }} className="clickable-symbol">
                             <div className="stock-name-cell">
                               <span className="stock-symbol">{shortSymbol(s.symbol)}</span>
                               <span className="stock-exchange">NSE · India</span>

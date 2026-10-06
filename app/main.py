@@ -15,9 +15,22 @@ from datetime import datetime
 from dotenv import load_dotenv
 from app.risk_engine import RiskManager
 from app.portfolio_optimizer import PortfolioOptimizer
-from app.database import SessionLocal
+from app.database import SessionLocal, engine, Base
 from app.models.db_models import StockData, FeatureStore
+
+_nse_stocks_cache = None
+def load_nse_stocks():
+    global _nse_stocks_cache
+    if _nse_stocks_cache is None:
+        nse_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "nse_stocks.json")
+        with open(nse_path, "r") as f:
+            _nse_stocks_cache = json.load(f)
+    return _nse_stocks_cache
+
 warnings.filterwarnings("ignore")
+
+# Initialize database tables automatically
+Base.metadata.create_all(bind=engine)
 
 load_dotenv()
 
@@ -130,7 +143,15 @@ app.add_middleware(
 # =========================
 stocks = [
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "BHARTIARTL.NS",
-    "SBIN.NS", "INFY.NS", "ITC.NS", "LT.NS", "TATAMOTORS.NS"
+    "SBIN.NS", "INFY.NS", "LICI.NS", "ITC.NS", "HINDUNILVR.NS",
+    "LT.NS", "BAJFINANCE.NS", "HCLTECH.NS", "MARUTI.NS", "SUNPHARMA.NS",
+    "TATAMOTORS.NS", "KOTAKBANK.NS", "M&M.NS", "AXISBANK.NS", "ASIANPAINT.NS",
+    "NTPC.NS", "TITAN.NS", "BAJAJFINSV.NS", "ULTRACEMCO.NS", "ONGC.NS",
+    "WIPRO.NS", "NESTLEIND.NS", "POWERGRID.NS", "ADANIENT.NS", "ADANIPORTS.NS",
+    "LTIM.NS", "TATASTEEL.NS", "COALINDIA.NS", "BAJAJ-AUTO.NS", "HDFCLIFE.NS",
+    "SBILIFE.NS", "GRASIM.NS", "TECHM.NS", "HINDALCO.NS", "EICHERMOT.NS",
+    "DRREDDY.NS", "CIPLA.NS", "BRITANNIA.NS", "DIVISLAB.NS", "APOLLOHOSP.NS",
+    "INDUSINDBK.NS", "TATACONSUM.NS", "HEROMOTOCO.NS", "BPCL.NS", "JSWSTEEL.NS"
 ]
 
 # =========================
@@ -389,7 +410,7 @@ def top_stocks():
             print(f"ERROR extracting {stock}: {e}")
             return None
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = executor.map(worker, stocks)
         for result in futures:
             if result is not None:
@@ -599,22 +620,161 @@ def run_backtest():
 # TRADING ENGINE
 # ============================================================
 
-PAPER_PORTFOLIO_PATH = "data/paper_portfolio.json"
+PAPER_PORTFOLIO_PATH  = "data/paper_portfolio.json"
+KITE_SESSION_PATH     = "data/kite_session.json"   # FIX 3: persistent token cache
 KITE_API_KEY    = os.getenv("KITE_API_KEY", "")
 KITE_API_SECRET = os.getenv("KITE_API_SECRET", "")
 KITE_REDIRECT   = os.getenv("KITE_REDIRECT_URL", "http://127.0.0.1:8000/trading/callback")
 
-# In-memory Kite session (resets on server restart — daily login required)
+# FIX 3: In-memory cache — now backed by file so it survives server restarts
 _kite_instance   = None
 _kite_access_tok = None
 
+
+def _save_kite_token(access_token: str):
+    """Persist the Zerodha access token to disk so it survives server restarts."""
+    os.makedirs("data", exist_ok=True)
+    with open(KITE_SESSION_PATH, "w") as f:
+        json.dump({"access_token": access_token, "saved_at": datetime.now().isoformat()}, f)
+
+
+def _load_kite_token() -> str | None:
+    """Read a previously saved access token from disk, if it exists."""
+    if not os.path.exists(KITE_SESSION_PATH):
+        return None
+    try:
+        with open(KITE_SESSION_PATH, "r") as f:
+            data = json.load(f)
+        return data.get("access_token")
+    except Exception:
+        return None
+
+
+def _clear_kite_token():
+    """Remove the cached token (called when token validation fails)."""
+    if os.path.exists(KITE_SESSION_PATH):
+        os.remove(KITE_SESSION_PATH)
+
+
 def get_kite() -> "KiteConnect | None":
+    """Return an authenticated KiteConnect instance.
+
+    Resolution order:
+    1. In-memory instance (fast path — set during this server's lifetime).
+    2. File-cached access token (FIX 3: survives server restarts).
+    3. None — user must log in via the Kite login URL.
+
+    Zerodha tokens expire at midnight IST; stale tokens are detected via a
+    lightweight profile() call and cleared so the UI shows a re-login prompt.
+    """
     global _kite_instance, _kite_access_tok
     if not KITE_AVAILABLE or not KITE_API_KEY:
         return None
+
+    # Fast path: already validated in this server session
     if _kite_instance and _kite_access_tok:
         return _kite_instance
+
+    # FIX 3: Try restoring session from file cache
+    cached_token = _load_kite_token()
+    if cached_token:
+        try:
+            kite = KiteConnect(api_key=KITE_API_KEY)
+            kite.set_access_token(cached_token)
+            kite.profile()          # lightweight call — raises if token expired
+            _kite_instance   = kite
+            _kite_access_tok = cached_token
+            return _kite_instance
+        except Exception:
+            # Token has expired (midnight rollover) — clear stale cache
+            _clear_kite_token()
+            _kite_instance   = None
+            _kite_access_tok = None
+
     return None
+
+
+def _get_live_ltp(kite, symbol_ns: str) -> float | None:
+    """FIX 1: Fetch real-time Last Traded Price from Zerodha.
+
+    Uses kite.ltp() which returns the actual market price with zero delay,
+    replacing the 15-minute delayed yfinance data that was previously used
+    to determine the limit price for live broker orders.
+
+    Args:
+        kite: Authenticated KiteConnect instance.
+        symbol_ns: yfinance-style ticker, e.g. "RELIANCE.NS".
+
+    Returns:
+        Float price, or None if the lookup failed.
+    """
+    symbol_clean = symbol_ns.replace(".NS", "").replace(".BO", "")
+    exchange     = "BSE" if symbol_ns.endswith(".BO") else "NSE"
+    kite_key     = f"{exchange}:{symbol_clean}"
+    try:
+        result = kite.ltp(kite_key)
+        return float(result[kite_key]["last_price"])
+    except Exception:
+        return None
+
+
+def _build_live_portfolio_state(kite) -> dict:
+    """FIX 2: Build the portfolio state dict that RiskManager.evaluate_trade() expects.
+
+    Fetches current holdings and open positions from Zerodha and converts them
+    into the format:
+        {
+            "open_positions": ["RELIANCE.NS", ...],
+            "allocations":    {"RELIANCE.NS": 0.08, ...},
+            "sector_exposure":{"Energy": 0.08, ...},
+        }
+
+    Portfolio capital is derived from the total portfolio value via Kite margins.
+    """
+    try:
+        margins    = kite.margins("equity")
+        net_worth  = float(margins.get("net", 0)) or 1.0
+
+        holdings   = kite.holdings()   # settled long-term positions
+        positions  = kite.positions()  # intraday / short-term
+        day_pos    = positions.get("day", []) + positions.get("net", [])
+
+        open_positions: list[str] = []
+        allocations:    dict[str, float] = {}
+        sector_map     = RiskManager(portfolio_capital=1).sector_map
+        sector_exposure: dict[str, float] = {}
+
+        def _add(symbol_ns: str, value: float):
+            if symbol_ns not in open_positions:
+                open_positions.append(symbol_ns)
+            allocations[symbol_ns] = allocations.get(symbol_ns, 0.0) + value / net_worth
+            sector = sector_map.get(symbol_ns, "Unknown")
+            sector_exposure[sector] = sector_exposure.get(sector, 0.0) + value / net_worth
+
+        for h in holdings:
+            qty = int(h.get("quantity", 0))
+            ltp = float(h.get("last_price", 0))
+            if qty > 0 and ltp > 0:
+                sym = h.get("tradingsymbol", "") + ".NS"
+                _add(sym, qty * ltp)
+
+        for p in day_pos:
+            qty = int(p.get("quantity", 0))
+            avg = float(p.get("average_price", 0))
+            if qty > 0 and avg > 0:
+                sym = p.get("tradingsymbol", "") + ".NS"
+                _add(sym, qty * avg)
+
+        return {
+            "open_positions":  open_positions,
+            "allocations":     allocations,
+            "sector_exposure": sector_exposure,
+            "net_worth":       net_worth,
+        }
+    except Exception:
+        # If we cannot read the live portfolio, return an empty state so risk
+        # checks still run (they will use zero existing exposure).
+        return {"open_positions": [], "allocations": {}, "sector_exposure": {}}
 
 
 def _load_paper() -> dict:
@@ -749,7 +909,12 @@ def trading_config():
 
 @app.get("/trading/callback")
 def trading_callback(request_token: str = Query(...)):
-    """OAuth2 callback — exchanges request_token for access_token."""
+    """OAuth2 callback — exchanges request_token for access_token.
+
+    FIX 3: After a successful handshake, persist the access token to disk so
+    the session is automatically restored after a server restart without
+    requiring the user to log in again (until Zerodha expires it at midnight).
+    """
     global _kite_instance, _kite_access_tok
     try:
         kite = KiteConnect(api_key=KITE_API_KEY)
@@ -757,6 +922,8 @@ def trading_callback(request_token: str = Query(...)):
         _kite_access_tok = data["access_token"]
         kite.set_access_token(_kite_access_tok)
         _kite_instance = kite
+        # FIX 3: Persist token to disk for post-restart session recovery
+        _save_kite_token(_kite_access_tok)
         # Redirect back to the frontend after successful auth
         return RedirectResponse("http://localhost:5174/?kite=connected")
     except Exception as e:
@@ -825,7 +992,33 @@ def trading_buy(req: BuyRequest):
             kite = get_kite()
             if not kite:
                 return {"success": False, "error": "Zerodha not connected. Please authenticate first."}
-            # Place a LIMIT buy order 0.1% above LTP for fill probability
+
+            # FIX 2: Risk gate — evaluate trade against institutional risk limits
+            # before touching the broker. Rejected trades never reach Zerodha.
+            live_state   = _build_live_portfolio_state(kite)
+            net_worth    = live_state.get("net_worth", 100000)
+            trade_value  = entry * req.quantity          # approx. capital to commit
+            risk_manager = RiskManager(portfolio_capital=net_worth)
+            risk_result  = risk_manager.evaluate_trade(
+                symbol             = req.symbol,
+                intended_capital   = trade_value,
+                current_portfolio  = live_state,
+            )
+            if not risk_result["approved"]:
+                return {
+                    "success": False,
+                    "error":   f"Risk gate rejected order: {risk_result['reason']}",
+                    "risk":    risk_result,
+                }
+
+            # FIX 1: Use real-time LTP from Zerodha instead of 15-min delayed
+            # yfinance data. Fall back to the yfinance price only if kite.ltp() fails.
+            live_ltp = _get_live_ltp(kite, req.symbol)
+            if live_ltp is not None:
+                entry = live_ltp
+                order_record["entry_price"] = entry
+
+            # Place a LIMIT buy order 0.1% above real-time LTP for fill probability
             limit_price = round(entry * 1.001, 2)
             order_id = kite.place_order(
                 variety=kite.VARIETY_REGULAR,
@@ -839,7 +1032,9 @@ def trading_buy(req: BuyRequest):
                 validity=kite.VALIDITY_DAY
             )
             order_record["kite_order_id"] = order_id
-            order_record["limit_price"] = limit_price
+            order_record["limit_price"]   = limit_price
+            order_record["risk_approved"] = True
+            order_record["recommended_sl_pct"] = risk_result.get("recommended_stop_loss_pct", 0.05)
             return clean_nans({"success": True, "mode": "live", "order_id": order_id, "order": order_record})
 
     except Exception as e:
@@ -893,6 +1088,24 @@ def trading_sell(req: SellRequest):
             kite = get_kite()
             if not kite:
                 return {"success": False, "error": "Zerodha not connected."}
+
+            # FIX 2: Risk gate for sell orders — ensure the position actually exists
+            # in the live portfolio and we are not over-selling.
+            live_state  = _build_live_portfolio_state(kite)
+            open_syms   = live_state.get("open_positions", [])
+            if req.symbol not in open_syms:
+                return {
+                    "success": False,
+                    "error":   f"Risk gate: No live position found for {req.symbol}. "
+                               "Cannot sell a position you do not hold.",
+                }
+
+            # FIX 1: Fetch real-time exit price from Zerodha LTP
+            live_ltp = _get_live_ltp(kite, req.symbol)
+            if live_ltp is not None:
+                exit_price = live_ltp
+
+            # Place a LIMIT sell order 0.1% below real-time LTP for fill probability
             limit_price = round(exit_price * 0.999, 2)
             order_id = kite.place_order(
                 variety=kite.VARIETY_REGULAR,
@@ -1032,6 +1245,75 @@ def get_portfolio_optimization():
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# =========================
+# CHART DATA API
+# =========================
+@app.get("/chart-data/{symbol}")
+def get_chart_data(symbol: str, period: str = "3M"):
+    try:
+        period_map = {
+            "1W": ("5d", "15m"),
+            "1M": ("1mo", "1h"),
+            "3M": ("3mo", "1d"),
+            "6M": ("6mo", "1d"),
+            "1Y": ("1y", "1d"),
+        }
+        yf_period, yf_interval = period_map.get(period, ("3mo", "1d"))
+        
+        data = yf.download(symbol, period=yf_period, interval=yf_interval, progress=False)
+        if data.empty:
+            return {"success": False, "error": "No data found"}
+            
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.droplevel(1)
+            
+        data = data.dropna()
+        
+        result_data = []
+        for index, row in data.iterrows():
+            if yf_interval in ["15m", "1h"]:
+                ts = int(index.timestamp())
+            else:
+                ts = int(pd.Timestamp(index.date()).timestamp())
+                
+            result_data.append({
+                "time": ts,
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "close": float(row["Close"]),
+                "volume": int(row["Volume"])
+            })
+            
+        return {"success": True, "symbol": symbol, "period": period, "data": result_data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# =========================
+# STOCK SEARCH API
+# =========================
+@app.get("/search-stocks")
+def search_stocks(query: str = ""):
+    if not query:
+        return {"results": []}
+        
+    stocks_data = load_nse_stocks()
+    q = query.lower()
+    
+    results = []
+    for stock in stocks_data:
+        if q in stock["symbol"].lower() or q in stock["name"].lower():
+            results.append({
+                "symbol": stock["symbol"],
+                "name": stock["name"],
+                "sector": stock.get("sector", ""),
+                "full_symbol": f"{stock['symbol']}.NS"
+            })
+            if len(results) >= 20:
+                break
+                
+    return {"results": results}
 
 # =========================
 # FEATURE STORE API

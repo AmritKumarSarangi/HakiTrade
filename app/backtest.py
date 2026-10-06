@@ -6,6 +6,19 @@ import torch
 import os
 from abc import ABC, abstractmethod
 
+# FIX 4: Indian equity transaction costs for Zerodha CNC (delivery) orders.
+# These are deducted once per round-trip trade (buy + sell).
+#
+# Breakdown (approximate, 2024-25 rates):
+#   STT                 : 0.10% on sell-side turnover
+#   Stamp duty          : 0.015% on buy-side turnover
+#   NSE exchange charge : 0.00322% on turnover
+#   GST (18%) on charges: ~0.001%
+#   SEBI charges        : negligible
+# --------------------------------------------------
+#   Round-trip total    : ~0.12%
+INDIA_ROUNDTRIP_COST = 0.0012   # 0.12 % per completed trade (buy + sell)
+
 class BaseStrategy(ABC):
     def __init__(self):
         pass
@@ -98,9 +111,19 @@ class Backtester:
         df = self.strategy.generate_signals(df)
         
         # RETURNS
-        df["Market Return"] = df["Close"].pct_change()
+        df["Market Return"]   = df["Close"].pct_change()
         df["Strategy Return"] = df["Signal"].shift(1) * df["Market Return"]
-        
+
+        # FIX 4: Apply Indian equity transaction costs.
+        # A round-trip cost is charged whenever the strategy reverses direction
+        # (signal flips from +1 → -1 or vice versa, i.e. a new trade is opened).
+        # Half the round-trip cost is applied on entry and half on exit, which
+        # is equivalent to deducting the full cost at the moment of the flip.
+        signal_shifted   = df["Signal"].shift(1)
+        signal_prev      = df["Signal"].shift(2)
+        trade_flip       = (signal_shifted != signal_prev) & signal_shifted.notna() & signal_prev.notna()
+        df["Strategy Return"] -= trade_flip.astype(float) * INDIA_ROUNDTRIP_COST
+
         df = df.dropna()
         
         if df.empty:

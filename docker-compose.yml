@@ -10,7 +10,10 @@ services:
       - backend
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=/api
     expose:
       - "80"
 
@@ -26,6 +29,8 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+    ports:
+      - "8000:8000"
 
   celery_worker:
     build: .
